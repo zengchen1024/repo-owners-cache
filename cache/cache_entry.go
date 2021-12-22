@@ -18,10 +18,10 @@ func branchToKey(b RepoBranch) string {
 }
 
 type cacheEntry struct {
-	dataLock sync.RWMutex
-	start    chan struct{}
-	data     RepoOwner
-	branch   RepoBranch
+	lock   sync.RWMutex
+	start  chan struct{}
+	owner  RepoOwner
+	branch RepoBranch
 }
 
 func newCacheEntry(b RepoBranch) *cacheEntry {
@@ -39,7 +39,7 @@ func (c *cacheEntry) init(cli *filecache.SDK, log *logrus.Entry) (RepoOwner, boo
 			<-c.start
 		}()
 
-		if d := c.getData(); d != nil {
+		if d := c.getOwner(); d != nil {
 			return d, false
 		}
 
@@ -52,7 +52,7 @@ func (c *cacheEntry) init(cli *filecache.SDK, log *logrus.Entry) (RepoOwner, boo
 			return nil, false
 		}
 
-		c.setData(r)
+		c.setOwner(r)
 
 		return r, false
 
@@ -61,18 +61,18 @@ func (c *cacheEntry) init(cli *filecache.SDK, log *logrus.Entry) (RepoOwner, boo
 	}
 }
 
-func (c *cacheEntry) getData() RepoOwner {
-	c.dataLock.RLock()
-	defer c.dataLock.RUnlock()
+func (c *cacheEntry) getOwner() RepoOwner {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 
-	return c.data
+	return c.owner
 }
 
-func (c *cacheEntry) setData(d RepoOwner) {
-	c.dataLock.Lock()
-	defer c.dataLock.Unlock()
+func (c *cacheEntry) setOwner(d RepoOwner) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
-	c.data = d
+	c.owner = d
 }
 
 func loadOwners(cli *filecache.SDK, b RepoBranch, log *logrus.Entry) (*RepoOwnerInfo, error) {
@@ -86,8 +86,7 @@ func loadOwners(cli *filecache.SDK, b RepoBranch, log *logrus.Entry) (*RepoOwner
 	k := branchToKey(b)
 
 	for _, item := range v.Files {
-		err := o.parseOwnerConfig(item.Dir(), item.Content, log)
-		if err != nil {
+		if err := o.parseOwnerConfig(item.Dir(), item.Content, log); err != nil {
 			log.Errorf(
 				"parse file:%s of branch:%s, err:%s",
 				item.Dir(), k, err.Error(),

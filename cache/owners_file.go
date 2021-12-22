@@ -40,7 +40,7 @@ type ownersConfig struct {
 }
 
 func normalConfig(c *Config) *Config {
-	// TODO
+	// TODO: change to lowercase?
 	return c
 }
 
@@ -71,7 +71,7 @@ func (o *RepoOwnerInfo) parseOwnerConfig(dir, content string, log *logrus.Entry)
 		}
 
 		if re, err := regexp.Compile(pattern); err != nil {
-			log.WithError(err).Errorf("Invalid regexp %q.", pattern)
+			log.Errorf("Invalid regexp %q, err:%s", pattern, err.Error())
 		} else {
 			o.applyFileConfigToPath(dir, re, &config)
 		}

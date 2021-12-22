@@ -12,8 +12,8 @@ type Cache struct {
 	cli *filecache.SDK
 	log *logrus.Entry
 
-	dataLock sync.RWMutex
-	data     map[string]*cacheEntry
+	lock sync.RWMutex
+	data map[string]*cacheEntry
 }
 
 func NewCache(endpoint string, log *logrus.Entry) *Cache {
@@ -25,8 +25,8 @@ func NewCache(endpoint string, log *logrus.Entry) *Cache {
 }
 
 func (c *Cache) get(k string) *cacheEntry {
-	c.dataLock.RLock()
-	defer c.dataLock.RUnlock()
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 
 	return c.data[k]
 }
@@ -38,8 +38,8 @@ func (c *Cache) getOrNewAnEntry(b RepoBranch) *cacheEntry {
 		return entry
 	}
 
-	c.dataLock.Lock()
-	defer c.dataLock.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
 	if e, ok := c.data[k]; ok {
 		return e
@@ -54,7 +54,7 @@ func (c *Cache) getOrNewAnEntry(b RepoBranch) *cacheEntry {
 func (c *Cache) LoadRepoOwners(b RepoBranch) RepoOwner {
 	e := c.getOrNewAnEntry(b)
 
-	if r := e.getData(); r != nil {
+	if r := e.getOwner(); r != nil {
 		return r
 	}
 
