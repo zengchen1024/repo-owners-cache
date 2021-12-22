@@ -2,12 +2,15 @@ package cache
 
 import (
 	libpath "path"
-	"regexp"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
-const baseDirConvention = "."
+const rootPath = "."
+
+func getPath(p string) string {
+	return libpath.Dir(p)
+}
 
 // RepoOwner is an interface to work with repoowners
 type RepoOwner interface {
@@ -21,43 +24,10 @@ type RepoOwner interface {
 	TopLevelApprovers() sets.String
 }
 
-type getConfigItem func(*Config) []string
-
-type fileOwnerInfo map[*regexp.Regexp]Config
-
-func (fo fileOwnerInfo) getConfig(path string, getValue getConfigItem) (Config, bool) {
-	for re, s := range fo {
-		if len(getValue(&s)) > 0 && re != nil && re.MatchString(path) {
-			return s, true
-		}
-	}
-	return Config{}, false
-}
-
-func (fo fileOwnerInfo) add(re *regexp.Regexp, config *Config) {
-	fo[re] = *config
-}
-
-type RepoOwnerInfo struct {
-	dirOwners  map[string]SimpleConfig
-	fileOwners map[string]fileOwnerInfo
-}
-
-func newRepoOwnerInfo() *RepoOwnerInfo {
-	return &RepoOwnerInfo{
-		dirOwners:  make(map[string]SimpleConfig),
-		fileOwners: make(map[string]fileOwnerInfo),
-	}
-}
-
-func (o *RepoOwnerInfo) IsEmpty() bool {
-	return o == nil || (len(o.dirOwners) == 0 && len(o.fileOwners) == 0)
-}
-
 // findOwnersForFile returns the OWNERS file path furthest down the tree for a specified file
 // The path variable should be a full path to a filename
 func (o *RepoOwnerInfo) findOwnersForFile(path string, getValue getConfigItem) string {
-	d := libpath.Dir(path)
+	d := getPath(path)
 
 	if fo, ok := o.fileOwners[d]; ok {
 		if _, b := fo.getConfig(path, getValue); b {
@@ -65,23 +35,23 @@ func (o *RepoOwnerInfo) findOwnersForFile(path string, getValue getConfigItem) s
 		}
 	}
 
-	for ; d != baseDirConvention; d = libpath.Dir(d) {
+	for ; d != rootPath; d = getPath(d) {
 		if s, ok := o.dirOwners[d]; ok {
 			// if the approver or reviewer is not set at this dir,
 			// lookup until find it even if the no_parent_owners is set.
-			if len(getValue(&s.Config)) > 0 {
+			if len(getValue(&s.ownersConfig)) > 0 {
 				return d
 			}
 		}
 	}
 
-	return baseDirConvention
+	return rootPath
 }
 
 // FindApproverOwnersForFile returns the OWNERS file path furthest down the tree for a specified file
 // that contains an approvers section
 func (o *RepoOwnerInfo) FindApproverOwnersForFile(path string) string {
-	return o.findOwnersForFile(path, func(c *Config) []string {
+	return o.findOwnersForFile(path, func(c *ownersConfig) []string {
 		return c.Approvers
 	})
 }
@@ -89,7 +59,7 @@ func (o *RepoOwnerInfo) FindApproverOwnersForFile(path string) string {
 // FindReviewersOwnersForFile returns the OWNERS file path furthest down the tree for a specified file
 // that contains a reviewers section
 func (o *RepoOwnerInfo) FindReviewersOwnersForFile(path string) string {
-	return o.findOwnersForFile(path, func(c *Config) []string {
+	return o.findOwnersForFile(path, func(c *ownersConfig) []string {
 		return c.Reviewers
 	})
 }
@@ -99,7 +69,7 @@ func (o *RepoOwnerInfo) FindReviewersOwnersForFile(path string) string {
 // leafOnly indicates whether only the OWNERS deepest in the tree (closest to the file)
 // should be returned or if all OWNERS in filepath should be returned.
 func (o *RepoOwnerInfo) entriesForFile(path string, leafOnly bool, getValue getConfigItem) sets.String {
-	d := libpath.Dir(path)
+	d := getPath(path)
 
 	if fo, ok := o.fileOwners[d]; ok {
 		if c, b := fo.getConfig(path, getValue); b {
@@ -111,18 +81,18 @@ func (o *RepoOwnerInfo) entriesForFile(path string, leafOnly bool, getValue getC
 
 	for {
 		if s, ok := o.dirOwners[d]; ok {
-			out.Insert(getValue(&s.Config)...)
+			out.Insert(getValue(&s.ownersConfig)...)
 
 			if out.Len() > 0 && (s.Options.NoParentOwners || leafOnly) {
 				break
 			}
 		}
 
-		if d == baseDirConvention {
+		if d == rootPath {
 			break
 		}
 
-		d = libpath.Dir(d)
+		d = getPath(d)
 	}
 
 	return out
@@ -132,7 +102,7 @@ func (o *RepoOwnerInfo) entriesForFile(path string, leafOnly bool, getValue getC
 // requested file. If pkg/OWNERS has user1 and pkg/util/OWNERS has user2 this
 // will only return user2 for the path pkg/util/sets/file.go
 func (o *RepoOwnerInfo) LeafApprovers(path string) sets.String {
-	return o.entriesForFile(path, true, func(c *Config) []string {
+	return o.entriesForFile(path, true, func(c *ownersConfig) []string {
 		return c.Approvers
 	})
 }
@@ -142,7 +112,7 @@ func (o *RepoOwnerInfo) LeafApprovers(path string) sets.String {
 // If pkg/OWNERS has user1 and pkg/util/OWNERS has user2 this
 // will return both user1 and user2 for the path pkg/util/sets/file.go
 func (o *RepoOwnerInfo) Approvers(path string) sets.String {
-	return o.entriesForFile(path, false, func(c *Config) []string {
+	return o.entriesForFile(path, false, func(c *ownersConfig) []string {
 		return c.Approvers
 	})
 }
@@ -151,7 +121,7 @@ func (o *RepoOwnerInfo) Approvers(path string) sets.String {
 // requested file. If pkg/OWNERS has user1 and pkg/util/OWNERS has user2 this
 // will only return user2 for the path pkg/util/sets/file.go
 func (o *RepoOwnerInfo) LeafReviewers(path string) sets.String {
-	return o.entriesForFile(path, true, func(c *Config) []string {
+	return o.entriesForFile(path, true, func(c *ownersConfig) []string {
 		return c.Reviewers
 	})
 }
@@ -161,13 +131,13 @@ func (o *RepoOwnerInfo) LeafReviewers(path string) sets.String {
 // If pkg/OWNERS has user1 and pkg/util/OWNERS has user2 this
 // will return both user1 and user2 for the path pkg/util/sets/file.go
 func (o *RepoOwnerInfo) Reviewers(path string) sets.String {
-	return o.entriesForFile(path, false, func(c *Config) []string {
+	return o.entriesForFile(path, false, func(c *ownersConfig) []string {
 		return c.Reviewers
 	})
 }
 
 func (o *RepoOwnerInfo) TopLevelApprovers() sets.String {
-	return o.entriesForFile(".", false, func(c *Config) []string {
+	return o.entriesForFile(".", false, func(c *ownersConfig) []string {
 		return c.Approvers
 	})
 }

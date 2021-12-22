@@ -48,7 +48,7 @@ func (c *cacheEntry) init(cli *filecache.SDK, log *logrus.Entry) (RepoOwner, boo
 			return nil, false
 		}
 
-		if r.IsEmpty() {
+		if r.isEmpty() {
 			return nil, false
 		}
 
