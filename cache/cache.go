@@ -54,11 +54,11 @@ func (c *Cache) getOrNewAnEntry(b RepoBranch) *cacheEntry {
 func (c *Cache) LoadRepoOwners(b RepoBranch) RepoOwner {
 	e := c.getOrNewAnEntry(b)
 
-	if r := e.getOwner(); r != nil {
-		return r
-	}
-
 	for i := 0; i < 10; i++ {
+		if r := e.getOwner(); r != nil {
+			return r
+		}
+
 		if r, b := e.init(c.cli, c.log); !b {
 			return r
 		}
@@ -66,7 +66,5 @@ func (c *Cache) LoadRepoOwners(b RepoBranch) RepoOwner {
 		time.Sleep(time.Second)
 	}
 
-	r, _ := e.init(c.cli, c.log)
-
-	return r
+	return e.getOwner()
 }

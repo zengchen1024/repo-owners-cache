@@ -2,10 +2,13 @@ package server
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/opensourceways/repo-owners-cache/cache"
 	"github.com/opensourceways/repo-owners-cache/protocol"
 )
+
+var noRepoOwner = fmt.Errorf("no repo owner")
 
 type repoOwnersServer struct {
 	c *cache.Cache
@@ -15,7 +18,7 @@ type repoOwnersServer struct {
 func (r *repoOwnersServer) FindApproverOwnersForFile(ctx context.Context, fp *protocol.RepoFilePath) (*protocol.Path, error) {
 	o := r.loadRepoOwners(fp.GetBranch())
 	if o == nil {
-		return nil, nil
+		return nil, noRepoOwner
 	}
 
 	return &protocol.Path{
@@ -26,7 +29,7 @@ func (r *repoOwnersServer) FindApproverOwnersForFile(ctx context.Context, fp *pr
 func (r *repoOwnersServer) FindReviewersOwnersForFile(ctx context.Context, fp *protocol.RepoFilePath) (*protocol.Path, error) {
 	o := r.loadRepoOwners(fp.GetBranch())
 	if o == nil {
-		return nil, nil
+		return nil, noRepoOwner
 	}
 
 	return &protocol.Path{
@@ -48,7 +51,7 @@ func (r *repoOwnersServer) LeafApprovers(ctx context.Context, fp *protocol.RepoF
 func (r *repoOwnersServer) Approvers(ctx context.Context, fp *protocol.RepoFilePath) (*protocol.Owners, error) {
 	o := r.loadRepoOwners(fp.GetBranch())
 	if o == nil {
-		return nil, nil
+		return nil, noRepoOwner
 	}
 
 	return &protocol.Owners{
@@ -59,7 +62,7 @@ func (r *repoOwnersServer) Approvers(ctx context.Context, fp *protocol.RepoFileP
 func (r *repoOwnersServer) LeafReviewers(ctx context.Context, fp *protocol.RepoFilePath) (*protocol.Owners, error) {
 	o := r.loadRepoOwners(fp.GetBranch())
 	if o == nil {
-		return nil, nil
+		return nil, noRepoOwner
 	}
 
 	return &protocol.Owners{
@@ -70,7 +73,7 @@ func (r *repoOwnersServer) LeafReviewers(ctx context.Context, fp *protocol.RepoF
 func (r *repoOwnersServer) Reviewers(ctx context.Context, fp *protocol.RepoFilePath) (*protocol.Owners, error) {
 	o := r.loadRepoOwners(fp.GetBranch())
 	if o == nil {
-		return nil, nil
+		return nil, noRepoOwner
 	}
 
 	return &protocol.Owners{
@@ -81,7 +84,7 @@ func (r *repoOwnersServer) Reviewers(ctx context.Context, fp *protocol.RepoFileP
 func (r *repoOwnersServer) AllReviewers(ctx context.Context, b *protocol.Branch) (*protocol.Owners, error) {
 	o := r.loadRepoOwners(b)
 	if o == nil {
-		return nil, nil
+		return nil, fmt.Errorf("no data")
 	}
 
 	return &protocol.Owners{
@@ -92,7 +95,7 @@ func (r *repoOwnersServer) AllReviewers(ctx context.Context, b *protocol.Branch)
 func (r *repoOwnersServer) TopLevelApprovers(ctx context.Context, b *protocol.Branch) (*protocol.Owners, error) {
 	o := r.loadRepoOwners(b)
 	if o == nil {
-		return nil, nil
+		return nil, noRepoOwner
 	}
 
 	return &protocol.Owners{
