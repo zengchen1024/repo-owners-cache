@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package repoOwners;
+
+option go_package = "../protocol";
+
+message Branch {
+  string platform = 1;
+  string org = 2;
+  string repo = 3;
+  string branch = 4;
+}
+
+message RepoFilePath {
+  Branch branch = 1;
+  string file = 2;
+}
+
+message Path {
+  string path = 1;
+}
+
+message Owners {
+  repeated string owners = 1;
+}
+
+service RepoOwners {
+  rpc FindApproverOwnersForFile(RepoFilePath) returns (Path) {}
+  rpc FindReviewersOwnersForFile(RepoFilePath) returns (Path) {}
+  rpc LeafApprovers(RepoFilePath) returns (Owners) {}
+  rpc LeafReviewers(RepoFilePath) returns (Owners) {}
+  rpc Approvers(RepoFilePath) returns (Owners) {}
+  rpc Reviewers(RepoFilePath) returns (Owners) {}
+  rpc AllReviewers(Branch) returns (Owners) {}
+  rpc TopLevelApprovers(Branch) returns (Owners) {}
+}
