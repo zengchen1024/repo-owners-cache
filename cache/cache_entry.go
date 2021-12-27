@@ -31,8 +31,7 @@ func newCacheEntry(b RepoBranch) *cacheEntry {
 	}
 }
 
-// The second return value means whether can retry
-func (c *cacheEntry) init(cli *filecache.SDK, log *logrus.Entry) (RepoOwner, bool) {
+func (c *cacheEntry) init(cli *filecache.SDK, log *logrus.Entry) (RepoOwner, error) {
 	select {
 	case c.start <- empty:
 		defer func() {
@@ -40,24 +39,29 @@ func (c *cacheEntry) init(cli *filecache.SDK, log *logrus.Entry) (RepoOwner, boo
 		}()
 
 		if d := c.getOwner(); d != nil {
-			return d, false
+			return d, nil
 		}
 
-		r, err := loadOwners(cli, c.branch, log)
+		v, err := cli.GetFiles(c.branch, "OWNERS", false)
 		if err != nil {
-			return nil, false
+			log.Errorf(
+				"load file for branch:%s, err:%s",
+				branchToKey(c.branch), err.Error(),
+			)
+			return nil, err
 		}
 
+		r := loadOwners(c.branch, v.Files, log)
 		if r.isEmpty() {
-			return nil, false
+			return nil, nil
 		}
 
 		c.setOwner(r)
 
-		return r, false
+		return r, nil
 
 	default:
-		return nil, true
+		return nil, fmt.Errorf("no chance to init repo owner")
 	}
 }
 
@@ -75,17 +79,11 @@ func (c *cacheEntry) setOwner(d RepoOwner) {
 	c.owner = d
 }
 
-func loadOwners(cli *filecache.SDK, b RepoBranch, log *logrus.Entry) (*RepoOwnerInfo, error) {
-	v, err := cli.GetFiles(b, "OWNERS", false)
-	if err != nil {
-		log.Errorf("load file for branch:%s, err:%s", branchToKey(b), err.Error())
-		return nil, err
-	}
-
+func loadOwners(b RepoBranch, files []models.File, log *logrus.Entry) *RepoOwnerInfo {
 	o := newRepoOwnerInfo()
 	k := branchToKey(b)
 
-	for _, item := range v.Files {
+	for _, item := range files {
 		if err := o.parseOwnerConfig(item.Dir(), item.Content, log); err != nil {
 			log.Errorf(
 				"parse file:%s of branch:%s, err:%s",
@@ -94,5 +92,5 @@ func loadOwners(cli *filecache.SDK, b RepoBranch, log *logrus.Entry) (*RepoOwner
 		}
 	}
 
-	return o, nil
+	return o
 }

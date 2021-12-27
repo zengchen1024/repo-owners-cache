@@ -17,11 +17,15 @@ message RepoFilePath {
 }
 
 message Path {
-  string path = 1;
+  string value = 1;
 }
 
 message Owners {
-  repeated string owners = 1;
+  repeated string value = 1;
+}
+
+message NoParentOwners {
+  bool value = 1;
 }
 
 service RepoOwners {
@@ -31,6 +35,7 @@ service RepoOwners {
   rpc LeafReviewers(RepoFilePath) returns (Owners) {}
   rpc Approvers(RepoFilePath) returns (Owners) {}
   rpc Reviewers(RepoFilePath) returns (Owners) {}
+  rpc IsNoParentOwners(RepoFilePath) returns (NoParentOwners) {}
   rpc AllReviewers(Branch) returns (Owners) {}
   rpc TopLevelApprovers(Branch) returns (Owners) {}
-}
+  }
