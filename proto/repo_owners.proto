@@ -38,4 +38,4 @@ service RepoOwners {
   rpc IsNoParentOwners(RepoFilePath) returns (NoParentOwners) {}
   rpc AllReviewers(Branch) returns (Owners) {}
   rpc TopLevelApprovers(Branch) returns (Owners) {}
-  }
+}

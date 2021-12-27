@@ -51,7 +51,7 @@ func (c *cacheEntry) init(cli *filecache.SDK, log *logrus.Entry) (RepoOwner, err
 			return nil, err
 		}
 
-		r := loadOwners(c.branch, v.Files, log)
+		r := loadRepoOwners(c.branch, v.Files, log)
 		if r.isEmpty() {
 			return nil, nil
 		}
@@ -79,7 +79,7 @@ func (c *cacheEntry) setOwner(d RepoOwner) {
 	c.owner = d
 }
 
-func loadOwners(b RepoBranch, files []models.File, log *logrus.Entry) *RepoOwnerInfo {
+func loadRepoOwners(b RepoBranch, files []models.File, log *logrus.Entry) *RepoOwnerInfo {
 	o := newRepoOwnerInfo()
 	k := branchToKey(b)
 

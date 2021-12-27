@@ -29,18 +29,18 @@ func NewRepoOwners(branch RepoBranch, c *client.Client) (RepoOwner, error) {
 	}
 
 	_, err := c.TopLevelApprovers(context.Background(), &b)
-	if err == nil {
-		return &owners{
-			b: &b,
-			c: c,
-		}, nil
+	if err != nil {
+		if server.IsNoRepoOwner(err) {
+			return nil, nil
+		}
+
+		return nil, err
 	}
 
-	if server.IsNoRepoOwner(err) {
-		return nil, nil
-	}
-
-	return nil, err
+	return &owners{
+		b: &b,
+		c: c,
+	}, nil
 }
 
 func (o *owners) repoFilePath(path string) protocol.RepoFilePath {
