@@ -21,9 +21,10 @@ type RepoOwnersClient interface {
 	FindApproverOwnersForFile(ctx context.Context, in *RepoFilePath, opts ...grpc.CallOption) (*Path, error)
 	FindReviewersOwnersForFile(ctx context.Context, in *RepoFilePath, opts ...grpc.CallOption) (*Path, error)
 	LeafApprovers(ctx context.Context, in *RepoFilePath, opts ...grpc.CallOption) (*Owners, error)
-	Approvers(ctx context.Context, in *RepoFilePath, opts ...grpc.CallOption) (*Owners, error)
 	LeafReviewers(ctx context.Context, in *RepoFilePath, opts ...grpc.CallOption) (*Owners, error)
+	Approvers(ctx context.Context, in *RepoFilePath, opts ...grpc.CallOption) (*Owners, error)
 	Reviewers(ctx context.Context, in *RepoFilePath, opts ...grpc.CallOption) (*Owners, error)
+	IsNoParentOwners(ctx context.Context, in *RepoFilePath, opts ...grpc.CallOption) (*NoParentOwners, error)
 	AllReviewers(ctx context.Context, in *Branch, opts ...grpc.CallOption) (*Owners, error)
 	TopLevelApprovers(ctx context.Context, in *Branch, opts ...grpc.CallOption) (*Owners, error)
 }
@@ -63,15 +64,6 @@ func (c *repoOwnersClient) LeafApprovers(ctx context.Context, in *RepoFilePath, 
 	return out, nil
 }
 
-func (c *repoOwnersClient) Approvers(ctx context.Context, in *RepoFilePath, opts ...grpc.CallOption) (*Owners, error) {
-	out := new(Owners)
-	err := c.cc.Invoke(ctx, "/repoOwners.RepoOwners/Approvers", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *repoOwnersClient) LeafReviewers(ctx context.Context, in *RepoFilePath, opts ...grpc.CallOption) (*Owners, error) {
 	out := new(Owners)
 	err := c.cc.Invoke(ctx, "/repoOwners.RepoOwners/LeafReviewers", in, out, opts...)
@@ -81,9 +73,27 @@ func (c *repoOwnersClient) LeafReviewers(ctx context.Context, in *RepoFilePath, 
 	return out, nil
 }
 
+func (c *repoOwnersClient) Approvers(ctx context.Context, in *RepoFilePath, opts ...grpc.CallOption) (*Owners, error) {
+	out := new(Owners)
+	err := c.cc.Invoke(ctx, "/repoOwners.RepoOwners/Approvers", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *repoOwnersClient) Reviewers(ctx context.Context, in *RepoFilePath, opts ...grpc.CallOption) (*Owners, error) {
 	out := new(Owners)
 	err := c.cc.Invoke(ctx, "/repoOwners.RepoOwners/Reviewers", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *repoOwnersClient) IsNoParentOwners(ctx context.Context, in *RepoFilePath, opts ...grpc.CallOption) (*NoParentOwners, error) {
+	out := new(NoParentOwners)
+	err := c.cc.Invoke(ctx, "/repoOwners.RepoOwners/IsNoParentOwners", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -115,9 +125,10 @@ type RepoOwnersServer interface {
 	FindApproverOwnersForFile(context.Context, *RepoFilePath) (*Path, error)
 	FindReviewersOwnersForFile(context.Context, *RepoFilePath) (*Path, error)
 	LeafApprovers(context.Context, *RepoFilePath) (*Owners, error)
-	Approvers(context.Context, *RepoFilePath) (*Owners, error)
 	LeafReviewers(context.Context, *RepoFilePath) (*Owners, error)
+	Approvers(context.Context, *RepoFilePath) (*Owners, error)
 	Reviewers(context.Context, *RepoFilePath) (*Owners, error)
+	IsNoParentOwners(context.Context, *RepoFilePath) (*NoParentOwners, error)
 	AllReviewers(context.Context, *Branch) (*Owners, error)
 	TopLevelApprovers(context.Context, *Branch) (*Owners, error)
 	mustEmbedUnimplementedRepoOwnersServer()
@@ -136,14 +147,17 @@ func (UnimplementedRepoOwnersServer) FindReviewersOwnersForFile(context.Context,
 func (UnimplementedRepoOwnersServer) LeafApprovers(context.Context, *RepoFilePath) (*Owners, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LeafApprovers not implemented")
 }
-func (UnimplementedRepoOwnersServer) Approvers(context.Context, *RepoFilePath) (*Owners, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Approvers not implemented")
-}
 func (UnimplementedRepoOwnersServer) LeafReviewers(context.Context, *RepoFilePath) (*Owners, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LeafReviewers not implemented")
 }
+func (UnimplementedRepoOwnersServer) Approvers(context.Context, *RepoFilePath) (*Owners, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Approvers not implemented")
+}
 func (UnimplementedRepoOwnersServer) Reviewers(context.Context, *RepoFilePath) (*Owners, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Reviewers not implemented")
+}
+func (UnimplementedRepoOwnersServer) IsNoParentOwners(context.Context, *RepoFilePath) (*NoParentOwners, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method IsNoParentOwners not implemented")
 }
 func (UnimplementedRepoOwnersServer) AllReviewers(context.Context, *Branch) (*Owners, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AllReviewers not implemented")
@@ -218,24 +232,6 @@ func _RepoOwners_LeafApprovers_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RepoOwners_Approvers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RepoFilePath)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RepoOwnersServer).Approvers(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/repoOwners.RepoOwners/Approvers",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RepoOwnersServer).Approvers(ctx, req.(*RepoFilePath))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _RepoOwners_LeafReviewers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RepoFilePath)
 	if err := dec(in); err != nil {
@@ -254,6 +250,24 @@ func _RepoOwners_LeafReviewers_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RepoOwners_Approvers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RepoFilePath)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RepoOwnersServer).Approvers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/repoOwners.RepoOwners/Approvers",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RepoOwnersServer).Approvers(ctx, req.(*RepoFilePath))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RepoOwners_Reviewers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RepoFilePath)
 	if err := dec(in); err != nil {
@@ -268,6 +282,24 @@ func _RepoOwners_Reviewers_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RepoOwnersServer).Reviewers(ctx, req.(*RepoFilePath))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RepoOwners_IsNoParentOwners_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RepoFilePath)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RepoOwnersServer).IsNoParentOwners(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/repoOwners.RepoOwners/IsNoParentOwners",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RepoOwnersServer).IsNoParentOwners(ctx, req.(*RepoFilePath))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -328,16 +360,20 @@ var RepoOwners_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _RepoOwners_LeafApprovers_Handler,
 		},
 		{
-			MethodName: "Approvers",
-			Handler:    _RepoOwners_Approvers_Handler,
-		},
-		{
 			MethodName: "LeafReviewers",
 			Handler:    _RepoOwners_LeafReviewers_Handler,
 		},
 		{
+			MethodName: "Approvers",
+			Handler:    _RepoOwners_Approvers_Handler,
+		},
+		{
 			MethodName: "Reviewers",
 			Handler:    _RepoOwners_Reviewers_Handler,
+		},
+		{
+			MethodName: "IsNoParentOwners",
+			Handler:    _RepoOwners_IsNoParentOwners_Handler,
 		},
 		{
 			MethodName: "AllReviewers",

@@ -20,6 +20,7 @@ type RepoOwner interface {
 	Approvers(path string) sets.String
 	LeafReviewers(path string) sets.String
 	Reviewers(path string) sets.String
+	IsNoParentOwners(path string) bool
 	AllReviewers() sets.String
 	TopLevelApprovers() sets.String
 }
@@ -62,6 +63,11 @@ func (o *RepoOwnerInfo) FindReviewersOwnersForFile(path string) string {
 	return o.findOwnersForFile(path, func(c *ownersConfig) []string {
 		return c.Reviewers
 	})
+}
+
+// IsNoParentOwners checks if an OWNERS file path refers to an OWNERS file with NoParentOwners enabled.
+func (o *RepoOwnerInfo) IsNoParentOwners(path string) bool {
+	return o.dirOwners[path].Options.NoParentOwners
 }
 
 // entriesForFile returns a set of users who are assignees to the requested file.
@@ -136,12 +142,14 @@ func (o *RepoOwnerInfo) Reviewers(path string) sets.String {
 	})
 }
 
+// TopLevelApprovers gets the approvers at directory of '.'.
 func (o *RepoOwnerInfo) TopLevelApprovers() sets.String {
-	return o.entriesForFile(".", false, func(c *ownersConfig) []string {
+	return o.entriesForFile(rootPath, false, func(c *ownersConfig) []string {
 		return c.Approvers
 	})
 }
 
+// AllReviewers gets all reviewers including approvers.
 func (o *RepoOwnerInfo) AllReviewers() sets.String {
 	r := sets.NewString()
 
