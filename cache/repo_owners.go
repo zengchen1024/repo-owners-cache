@@ -142,12 +142,14 @@ func (o *RepoOwnerInfo) Reviewers(path string) sets.String {
 	})
 }
 
+// TopLevelApprovers gets the approvers at directory of '.'.
 func (o *RepoOwnerInfo) TopLevelApprovers() sets.String {
-	return o.entriesForFile(".", false, func(c *ownersConfig) []string {
+	return o.entriesForFile(rootPath, false, func(c *ownersConfig) []string {
 		return c.Approvers
 	})
 }
 
+// AllReviewers gets all reviewers including approvers.
 func (o *RepoOwnerInfo) AllReviewers() sets.String {
 	r := sets.NewString()
 
