@@ -3,6 +3,7 @@ package cache
 import (
 	"encoding/base64"
 	"regexp"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
@@ -72,7 +73,7 @@ func (o *RepoOwnerInfo) isEmpty() bool {
 
 func (o *RepoOwnerInfo) setDirOwners(path string, config *dirOwnerInfo) {
 	o.dirOwners[path] = dirOwnerInfo{
-		ownersConfig: *normalConfig(&config.ownersConfig),
+		ownersConfig: normalConfig(&config.ownersConfig),
 		Options:      config.Options,
 	}
 }
@@ -82,7 +83,8 @@ func (o *RepoOwnerInfo) setFileOwners(path string, re *regexp.Regexp, config *ow
 		o.fileOwners[path] = make(fileOwnerInfo)
 	}
 
-	o.fileOwners[path].add(re, normalConfig(config))
+	v := normalConfig(config)
+	o.fileOwners[path].add(re, &v)
 }
 
 func (o *RepoOwnerInfo) parseOwnerConfig(dir, content string, log *logrus.Entry) error {
@@ -118,7 +120,23 @@ func parseYaml(content string, r *ownersFile) error {
 	return yaml.Unmarshal(b, r)
 }
 
-func normalConfig(c *ownersConfig) *ownersConfig {
-	// TODO: change to lowercase?
-	return c
+func normalConfig(c *ownersConfig) ownersConfig {
+	f := func(v []string) []string {
+		n := len(v)
+		if n == 0 {
+			return nil
+		}
+
+		r := make([]string, n)
+		for i := range v {
+			r[i] = strings.ToLower(v[i])
+		}
+
+		return r
+	}
+
+	return ownersConfig{
+		Approvers: f(c.Approvers),
+		Reviewers: f(c.Reviewers),
+	}
 }
