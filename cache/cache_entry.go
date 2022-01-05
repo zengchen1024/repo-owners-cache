@@ -43,20 +43,19 @@ func (c *cacheEntry) init(cli *filecache.SDK, log *logrus.Entry) (RepoOwner, err
 			return d, nil
 		}
 
-		k := c.getBranchKey()
+		l := log.WithField("init for branch", c.getBranchKey())
 
 		v, err := cli.GetFiles(c.branch, "OWNERS", false)
 		if err != nil {
-			log.Errorf(
-				"load file for branch:%s, err:%s", k, err.Error(),
-			)
+			l.Errorf("load file, err:%s", err.Error())
+
 			return nil, err
 		}
 
 		o := newRepoOwnerInfo()
 
-		for i := range v.Files {
-			parseOwnerConfig(k, o, &v.Files[i], log)
+		for _, f := range v.Files {
+			o.parseOwnerConfig(f.Dir(), f.Content, f.SHA, l)
 		}
 
 		if o.isEmpty() {
@@ -79,28 +78,30 @@ func (c *cacheEntry) refresh(cli *filecache.SDK, log *logrus.Entry) error {
 			<-c.start
 		}()
 
+		l := log.WithField("refresh for branch", c.getBranchKey())
+
 		owner := c.getOwner()
 		if owner == nil {
-			return fmt.Errorf("unable to refresh")
-		}
+			l.Error("it should init instead of refreshing")
 
-		k := c.getBranchKey()
+			return nil
+		}
 
 		v, err := cli.GetFiles(c.branch, "OWNERS", false)
 		if err != nil {
-			log.Errorf(
-				"load file for branch:%s, err:%s", k, err.Error(),
-			)
+			l.Errorf("load file, err:%s", err.Error())
+
 			return err
 		}
 
 		no := newRepoOwnerInfo()
+
 		for i := range v.Files {
 			f := &v.Files[i]
-			dir := f.Path.Dir()
+			dir := f.Dir()
 
 			if owner.getFileSHA(dir) != f.SHA {
-				parseOwnerConfig(k, no, f, log)
+				no.parseOwnerConfig(dir, f.Content, f.SHA, l)
 			}
 		}
 
@@ -109,13 +110,12 @@ func (c *cacheEntry) refresh(cli *filecache.SDK, log *logrus.Entry) error {
 		}
 
 		owner.copyOwnerFiles(no)
-
 		c.setOwner(no)
 
 		return nil
 
 	default:
-		return fmt.Errorf("no chance to init repo owner")
+		return fmt.Errorf("no chance to refresh repo owner")
 	}
 }
 
@@ -135,13 +135,4 @@ func (c *cacheEntry) setOwner(d *RepoOwnerInfo) {
 
 func (c *cacheEntry) getBranchKey() string {
 	return branchToKey(c.branch)
-}
-
-func parseOwnerConfig(branch string, o *RepoOwnerInfo, file *models.File, log *logrus.Entry) {
-	if err := o.parseOwnerConfig(file.Dir(), file.Content, file.SHA, log); err != nil {
-		log.Errorf(
-			"parse file:%s of branch:%s, err:%s",
-			file.Dir(), branch, err.Error(),
-		)
-	}
 }

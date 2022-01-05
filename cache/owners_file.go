@@ -92,10 +92,6 @@ func (o *RepoOwnerInfo) copyOwnerFiles(no *RepoOwnerInfo) {
 }
 
 func (o *RepoOwnerInfo) update(path, sha string, dirOwner *dirOwnerInfo, fileOwner fileOwnerInfo) {
-	if dirOwner.isEmpty() && fileOwner.isEmpty() {
-		return
-	}
-
 	done := false
 	setSHA := func() {
 		if !done {
@@ -120,6 +116,7 @@ func (o *RepoOwnerInfo) update(path, sha string, dirOwner *dirOwnerInfo, fileOwn
 func (o *RepoOwnerInfo) parseOwnerConfig(dir, content, sha string, log *logrus.Entry) error {
 	c := new(ownersFile)
 	if err := parseYaml(content, c); err != nil {
+		log.Errorf("parse file:%s/%s, err:%s", dir, sha, err.Error())
 		return err
 	}
 

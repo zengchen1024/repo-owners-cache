@@ -32,7 +32,7 @@ func (c *Cache) SyncPerDay(start time.Duration) func() {
 	go func() {
 		time.Sleep(start)
 
-		c.t.Start(c.reloadAll, 24*time.Hour)
+		c.t.Start(c.refresh, 24*time.Hour)
 	}()
 
 	return c.t.Stop
@@ -90,7 +90,7 @@ func (c *Cache) LoadRepoOwners(b RepoBranch) (RepoOwner, error) {
 	return nil, err
 }
 
-func (c *Cache) reloadAll() {
+func (c *Cache) refresh() {
 	c.lock.RLock()
 	all := make([]string, 0, len(c.data))
 	for k := range c.data {
