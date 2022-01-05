@@ -113,11 +113,11 @@ func (o *RepoOwnerInfo) update(path, sha string, dirOwner *dirOwnerInfo, fileOwn
 	}
 }
 
-func (o *RepoOwnerInfo) parseOwnerConfig(dir, content, sha string, log *logrus.Entry) error {
+func (o *RepoOwnerInfo) parseOwnerConfig(dir, content, sha string, log *logrus.Entry) {
 	c := new(ownersFile)
 	if err := parseYaml(content, c); err != nil {
 		log.Errorf("parse file:%s/%s, err:%s", dir, sha, err.Error())
-		return err
+		return
 	}
 
 	fileOwner := make(fileOwnerInfo)
@@ -142,8 +142,6 @@ func (o *RepoOwnerInfo) parseOwnerConfig(dir, content, sha string, log *logrus.E
 	}
 
 	o.update(dir, sha, dirOwner, fileOwner)
-
-	return nil
 }
 
 func parseYaml(content string, r *ownersFile) error {
