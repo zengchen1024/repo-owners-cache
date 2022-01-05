@@ -32,7 +32,7 @@ func newCacheEntry(b RepoBranch) *cacheEntry {
 	}
 }
 
-func (c *cacheEntry) init(cli *filecache.SDK, log *logrus.Entry) (RepoOwner, error) {
+func (c *cacheEntry) init(cli *filecache.SDK, log *logrus.Entry) (*RepoOwnerInfo, error) {
 	select {
 	case c.start <- empty:
 		defer func() {

@@ -66,7 +66,7 @@ func (c *Cache) getOrNewAnEntry(b RepoBranch) *cacheEntry {
 func (c *Cache) LoadRepoOwners(b RepoBranch) (RepoOwner, error) {
 	e := c.getOrNewAnEntry(b)
 
-	var r RepoOwner
+	var r *RepoOwnerInfo
 	var err error
 
 	for i := 0; i < 10; i++ {
@@ -75,7 +75,11 @@ func (c *Cache) LoadRepoOwners(b RepoBranch) (RepoOwner, error) {
 		}
 
 		if r, err = e.init(c.cli, c.log); err == nil {
-			return r, nil
+			if r != nil {
+				return r, nil
+			}
+
+			return nil, nil
 		}
 
 		time.Sleep(time.Second)
