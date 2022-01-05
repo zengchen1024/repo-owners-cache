@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opensourceways/community-robot-lib/utils"
 	filecache "github.com/opensourceways/repo-file-cache/sdk"
 	"github.com/sirupsen/logrus"
 )
@@ -11,6 +12,7 @@ import (
 type Cache struct {
 	cli *filecache.SDK
 	log *logrus.Entry
+	t   utils.Timer
 
 	lock sync.RWMutex
 	data map[string]*cacheEntry
@@ -22,6 +24,18 @@ func NewCache(endpoint string, log *logrus.Entry) *Cache {
 		cli:  filecache.NewSDK(endpoint, 3),
 		data: make(map[string]*cacheEntry),
 	}
+}
+
+func (c *Cache) SyncPerDay(start time.Duration) func() {
+	c.t = utils.NewTimer()
+
+	go func() {
+		time.Sleep(start)
+
+		c.t.Start(c.reloadAll, 24*time.Hour)
+	}()
+
+	return c.t.Stop
 }
 
 func (c *Cache) get(k string) *cacheEntry {
@@ -74,4 +88,34 @@ func (c *Cache) LoadRepoOwners(b RepoBranch) (RepoOwner, error) {
 	}
 
 	return nil, err
+}
+
+func (c *Cache) reloadAll() {
+	c.lock.RLock()
+	all := make([]string, 0, len(c.data))
+	for k := range c.data {
+		all = append(all, k)
+	}
+	c.lock.RUnlock()
+
+	f := func(k string) {
+		e := c.get(k)
+		if e == nil {
+			return
+		}
+
+		for i := 0; i < 10; i++ {
+			if err := e.refresh(c.cli, c.log); err == nil {
+				break
+			}
+
+			time.Sleep(time.Second)
+		}
+
+		e.refresh(c.cli, c.log)
+	}
+
+	for _, k := range all {
+		f(k)
+	}
 }
