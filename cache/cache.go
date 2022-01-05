@@ -29,11 +29,9 @@ func NewCache(endpoint string, log *logrus.Entry) *Cache {
 func (c *Cache) SyncPerDay(start time.Duration) func() {
 	c.t = utils.NewTimer()
 
-	go func() {
-		time.Sleep(start)
-
-		c.t.Start(c.refresh, 24*time.Hour)
-	}()
+	go func(delay time.Duration) {
+		c.t.Start(c.refresh, 24*time.Hour, delay)
+	}(start)
 
 	return c.t.Stop
 }
