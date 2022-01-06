@@ -18,10 +18,11 @@ func branchToKey(b RepoBranch) string {
 }
 
 type cacheEntry struct {
-	lock   sync.RWMutex
-	start  chan struct{}
-	owner  RepoOwner
+	owner  *RepoOwnerInfo
 	branch RepoBranch
+
+	lock  sync.RWMutex
+	start chan struct{}
 }
 
 func newCacheEntry(b RepoBranch) *cacheEntry {
@@ -31,7 +32,7 @@ func newCacheEntry(b RepoBranch) *cacheEntry {
 	}
 }
 
-func (c *cacheEntry) init(cli *filecache.SDK, log *logrus.Entry) (RepoOwner, error) {
+func (c *cacheEntry) init(cli *filecache.SDK, log *logrus.Entry) (*RepoOwnerInfo, error) {
 	select {
 	case c.start <- empty:
 		defer func() {
@@ -42,55 +43,96 @@ func (c *cacheEntry) init(cli *filecache.SDK, log *logrus.Entry) (RepoOwner, err
 			return d, nil
 		}
 
+		l := log.WithField("init for branch", c.getBranchKey())
+
 		v, err := cli.GetFiles(c.branch, "OWNERS", false)
 		if err != nil {
-			log.Errorf(
-				"load file for branch:%s, err:%s",
-				branchToKey(c.branch), err.Error(),
-			)
+			l.Errorf("load file, err:%s", err.Error())
+
 			return nil, err
 		}
 
-		r := loadRepoOwners(c.branch, v.Files, log)
-		if r.isEmpty() {
+		o := newRepoOwnerInfo()
+
+		for _, f := range v.Files {
+			o.parseOwnerConfig(f.Dir(), f.Content, f.SHA, l)
+		}
+
+		if o.isEmpty() {
 			return nil, nil
 		}
 
-		c.setOwner(r)
+		c.setOwner(o)
 
-		return r, nil
+		return o, nil
 
 	default:
 		return nil, fmt.Errorf("no chance to init repo owner")
 	}
 }
 
-func (c *cacheEntry) getOwner() RepoOwner {
+func (c *cacheEntry) refresh(cli *filecache.SDK, log *logrus.Entry) error {
+	select {
+	case c.start <- empty:
+		defer func() {
+			<-c.start
+		}()
+
+		l := log.WithField("refresh for branch", c.getBranchKey())
+
+		owner := c.getOwner()
+		if owner == nil {
+			l.Error("it should init instead of refreshing")
+
+			return nil
+		}
+
+		v, err := cli.GetFiles(c.branch, "OWNERS", false)
+		if err != nil {
+			l.Errorf("load file, err:%s", err.Error())
+
+			return err
+		}
+
+		no := newRepoOwnerInfo()
+
+		for i := range v.Files {
+			f := &v.Files[i]
+			dir := f.Dir()
+
+			if owner.getFileSHA(dir) != f.SHA {
+				no.parseOwnerConfig(dir, f.Content, f.SHA, l)
+			}
+		}
+
+		if no.isEmpty() {
+			return nil
+		}
+
+		owner.copyOwnerFiles(no)
+		c.setOwner(no)
+
+		return nil
+
+	default:
+		return fmt.Errorf("no chance to refresh repo owner")
+	}
+}
+
+func (c *cacheEntry) getOwner() *RepoOwnerInfo {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
 	return c.owner
 }
 
-func (c *cacheEntry) setOwner(d RepoOwner) {
+func (c *cacheEntry) setOwner(d *RepoOwnerInfo) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
 	c.owner = d
 }
 
-func loadRepoOwners(b RepoBranch, files []models.File, log *logrus.Entry) *RepoOwnerInfo {
-	o := newRepoOwnerInfo()
-	k := branchToKey(b)
-
-	for _, item := range files {
-		if err := o.parseOwnerConfig(item.Dir(), item.Content, log); err != nil {
-			log.Errorf(
-				"parse file:%s of branch:%s, err:%s",
-				item.Dir(), k, err.Error(),
-			)
-		}
-	}
-
-	return o
+func (c *cacheEntry) getBranchKey() string {
+	return branchToKey(c.branch)
 }
