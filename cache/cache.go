@@ -108,7 +108,7 @@ func (c *Cache) refresh() {
 
 		for i := 0; i < 10; i++ {
 			if err := e.refresh(c.cli, c.log); err == nil {
-				break
+				return
 			}
 
 			time.Sleep(time.Second)
