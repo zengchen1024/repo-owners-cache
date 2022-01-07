@@ -93,6 +93,8 @@ func (c *Cache) LoadRepoOwners(b RepoBranch) (RepoOwner, error) {
 }
 
 func (c *Cache) refresh() {
+	c.log.Info("refresh starts")
+
 	c.lock.RLock()
 	all := make([]string, 0, len(c.data))
 	for k := range c.data {
@@ -120,4 +122,6 @@ func (c *Cache) refresh() {
 	for _, k := range all {
 		f(k)
 	}
+
+	c.log.Info("refresh ends")
 }
