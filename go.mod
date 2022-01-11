@@ -3,9 +3,11 @@ module github.com/opensourceways/repo-owners-cache
 go 1.16
 
 require (
-	github.com/opensourceways/community-robot-lib v0.0.0-20220105085248-b222c8e961ec
-	github.com/opensourceways/repo-file-cache v0.0.0-20211109091624-97a8604fa005
+	github.com/opensourceways/community-robot-lib v0.0.0-20220106023803-5440edf1bb49
+	github.com/opensourceways/repo-file-cache v0.0.0-20220111033841-e731b3bb770a
 	github.com/sirupsen/logrus v1.8.1
+	golang.org/x/net v0.0.0-20220107192237-5cfca573fb4d // indirect
+	golang.org/x/sys v0.0.0-20220110181412-a018aaa089fe // indirect
 	google.golang.org/grpc v1.43.0
 	google.golang.org/protobuf v1.27.1
 	k8s.io/apimachinery v0.23.1
