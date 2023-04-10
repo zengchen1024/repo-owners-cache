@@ -3,8 +3,11 @@ package client
 import (
 	"google.golang.org/grpc"
 
+	"github.com/opensourceways/repo-owners-cache/grpc/grpcerrors"
 	"github.com/opensourceways/repo-owners-cache/protocol"
 )
+
+var IsNoRepoOwner = grpcerrors.IsNoRepoOwner
 
 func NewClient(endpoint string) (*Client, error) {
 	conn, err := grpc.Dial(endpoint, grpc.WithInsecure())

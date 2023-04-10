@@ -2,17 +2,11 @@ package server
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/opensourceways/repo-owners-cache/cache"
+	"github.com/opensourceways/repo-owners-cache/grpc/grpcerrors"
 	"github.com/opensourceways/repo-owners-cache/protocol"
 )
-
-var noRepoOwner = fmt.Errorf("no repo owner")
-
-func IsNoRepoOwner(err error) bool {
-	return err != nil && err.Error() == noRepoOwner.Error()
-}
 
 type repoOwnersServer struct {
 	c *cache.Cache
@@ -31,7 +25,7 @@ func (r *repoOwnersServer) loadRepoOwners(b *protocol.Branch) (cache.RepoOwner, 
 	}
 
 	if o == nil {
-		return nil, noRepoOwner
+		return nil, grpcerrors.NewErrorNoRepoOwner()
 	}
 
 	return o, nil
@@ -103,7 +97,7 @@ func (r *repoOwnersServer) Reviewers(ctx context.Context, fp *protocol.RepoFileP
 	}, nil
 }
 
-func (r *repoOwnersServer) IsNoRepoOwner(ctx context.Context, fp *protocol.RepoFilePath) (*protocol.NoParentOwners, error) {
+func (r *repoOwnersServer) IsNoParentOwners(ctx context.Context, fp *protocol.RepoFilePath) (*protocol.NoParentOwners, error) {
 	o, err := r.loadRepoOwners(fp.GetBranch())
 	if err != nil {
 		return nil, err

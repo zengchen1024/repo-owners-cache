@@ -7,7 +7,6 @@ import (
 
 	"github.com/opensourceways/repo-owners-cache/cache"
 	"github.com/opensourceways/repo-owners-cache/grpc/client"
-	"github.com/opensourceways/repo-owners-cache/grpc/server"
 	"github.com/opensourceways/repo-owners-cache/protocol"
 )
 
@@ -30,7 +29,7 @@ func NewRepoOwners(branch RepoBranch, c *client.Client) (RepoOwner, error) {
 
 	_, err := c.TopLevelApprovers(context.Background(), &b)
 	if err != nil {
-		if server.IsNoRepoOwner(err) {
+		if client.IsNoRepoOwner(err) {
 			return nil, nil
 		}
 
